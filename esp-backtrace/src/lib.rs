@@ -35,7 +35,7 @@ extern crate esp_metadata_generated;
 
 #[cfg(feature = "defmt")]
 use defmt as _;
-#[cfg(feature = "println")]
+#[cfg(not(feature = "defmt"))]
 use esp_println as _;
 
 const MAX_BACKTRACE_ADDRESSES: usize =
@@ -82,7 +82,7 @@ macro_rules! println {
 #[cfg(all(feature = "panic-handler", feature = "defmt", stack_dump))]
 pub(crate) use println;
 
-#[cfg(all(feature = "panic-handler", feature = "println"))]
+#[cfg(all(feature = "panic-handler", not(feature = "defmt")))]
 macro_rules! println {
     ($($arg:tt)*) => {
         esp_println::println!($($arg)*);
@@ -91,7 +91,7 @@ macro_rules! println {
 
 #[cfg(feature = "panic-handler")]
 fn set_color_code(_code: &str) {
-    #[cfg(all(feature = "colors", feature = "println"))]
+    #[cfg(all(feature = "colors", not(feature = "defmt")))]
     {
         println!("{}", _code);
     }
@@ -102,6 +102,7 @@ fn set_color_code(_code: &str) {
 pub(crate) mod arch;
 
 #[cfg(feature = "panic-handler")]
+#[allow(unused_variables)]
 #[panic_handler]
 fn panic_handler(info: &core::panic::PanicInfo) -> ! {
     pre_backtrace();
@@ -110,7 +111,9 @@ fn panic_handler(info: &core::panic::PanicInfo) -> ! {
     println!("");
     println!("====================== PANIC ======================");
 
+    #[cfg(not(feature = "defmt"))]
     println!("{}", info);
+
     set_color_code(RESET);
 
     cfg_if::cfg_if! {

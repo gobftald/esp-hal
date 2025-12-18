@@ -28,9 +28,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Ensure that exactly one chip has been specified:
     let chip = esp_metadata_generated::Chip::from_cargo_feature()?;
 
-    // Ensure that exactly a backend is selected:
-    assert_unique_used_features!("defmt", "println");
-
     // Ensure that there aren't multiple halt methods selected:
     assert_unique_features!("custom-halt", "halt-cores", "semihosting");
 

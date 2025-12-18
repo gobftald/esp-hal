@@ -13,7 +13,7 @@ license       = "MIT OR Apache-2.0"
 [package.metadata.espressif]
 doc-config = { features = ["defmt"] }
 check-configs = [
-    { features = ["println", "esp-println/auto"] },
+    { features = ["esp-println/auto"] }, # println -> no(defmt)
     { features = ["defmt"] },
     { features = ["defmt", "panic-handler", "custom-halt"] },
     { features = ["defmt", "panic-handler", "halt-cores"] },
@@ -25,7 +25,7 @@ clippy-configs = [
 
 [package.metadata.docs.rs]
 default-target = "riscv32imc-unknown-none-elf"
-features       = ["esp32c3", "panic-handler", "exception-handler", "println", "esp-println/uart"]
+features = ["esp32c3", "panic-handler", "exception-handler", "esp-println/uart"] # println -> no(defmt)
 
 [lib]
 bench = false
@@ -36,7 +36,11 @@ cfg-if      = "1"
 defmt       = { version = "1", optional = true }
 esp-config  = { version = "0.6.0", path = "../esp-config" }
 esp-metadata-generated = { version = "0.3.0", path = "../esp-metadata-generated" }
-esp-println = { version = "0.16.0", optional = true, default-features = false, path = "../esp-println" }
+
+# println -> no(defmt), so we always need esp-println as dependent
+# this is the only cost of this changes
+esp-println = { version = "0.16.0", default-features = false, path = "../esp-println" }
+
 heapless    = "0.9"
 semihosting = { version = "0.1.20", optional = true }
 document-features = "0.2"
@@ -53,23 +57,21 @@ esp-metadata-generated = { version = "0.3.0", path = "../esp-metadata-generated"
 
 [features]
 default = ["colors"]
-
-esp32   = ["esp-println?/esp32", "esp-metadata-generated/esp32", "semihosting?/openocd-semihosting", "print-float-registers"]
-esp32c2 = ["esp-println?/esp32c2", "esp-metadata-generated/esp32c2"]
-esp32c3 = ["esp-println?/esp32c3", "esp-metadata-generated/esp32c3"]
-esp32c6 = ["esp-println?/esp32c6", "esp-metadata-generated/esp32c6"]
-esp32h2 = ["esp-println?/esp32h2", "esp-metadata-generated/esp32h2"]
-esp32s2 = ["esp-println?/esp32s2", "esp-metadata-generated/esp32s2", "semihosting?/openocd-semihosting"]
-esp32s3 = ["esp-println?/esp32s3", "esp-metadata-generated/esp32s3", "semihosting?/openocd-semihosting", "print-float-registers"]
-
-## Use `esp-println`
-println = ["dep:esp-println"]
+esp32   = ["esp-println/esp32", "esp-metadata-generated/esp32", "semihosting?/openocd-semihosting", "print-float-registers"]
+esp32c2 = ["esp-println/esp32c2", "esp-metadata-generated/esp32c2"]
+esp32c3 = ["esp-println/esp32c3", "esp-metadata-generated/esp32c3"]
+esp32c6 = ["esp-println/esp32c6", "esp-metadata-generated/esp32c6"]
+esp32h2 = ["esp-println/esp32h2", "esp-metadata-generated/esp32h2"]
+esp32s2 = ["esp-println/esp32s2", "esp-metadata-generated/esp32s2", "semihosting?/openocd-semihosting"]
+esp32s3 = ["esp-println/esp32s3", "esp-metadata-generated/esp32s3", "semihosting?/openocd-semihosting", "print-float-registers"]
 
 ## Use `defmt`
 ##
 ## Please note that `defmt` does _not_ provide MSRV guarantees with releases, and as such we are
 ## not able to make any MSRV guarantees when this feature is enabled. For more information refer to
 ## the MSRV section of `defmt`'s README: https://github.com/knurling-rs/defmt?tab=readme-ov-file#msrv
+##
+## if no defmt -> esp-println
 defmt = ["dep:defmt"]
 
 print-float-registers = [] # TODO support esp32p4

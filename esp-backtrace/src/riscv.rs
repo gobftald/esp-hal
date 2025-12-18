@@ -66,7 +66,7 @@ pub(crate) fn backtrace_internal(fp: u32, suppress: u32) -> Backtrace {
 #[cfg(all(stack_dump, feature = "panic-handler"))]
 pub(super) fn dump_stack() {
     cfg_if::cfg_if! {
-        if #[cfg(feature = "println")] {
+        if #[cfg(not(feature = "defmt"))] {
             const MAX_STACK_DUMP_SIZE: u32 = match () {
                 _ if cfg!(stack_dump_max_size_4k) => 4 * 1024,
                 _ if cfg!(stack_dump_max_size_8k) => 8 * 1024,
