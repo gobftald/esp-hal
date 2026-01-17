@@ -2,6 +2,7 @@
 .trap : ALIGN(4)
 {
   _trap_section_origin = .;
+  KEEP(*(.trap.vector));
   KEEP(*(.trap));
   *(.trap.*);
 } > RWTEXT
