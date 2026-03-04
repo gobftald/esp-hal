@@ -228,6 +228,9 @@ requires-unstable = []
 # semver guarantees and may change or be removed without notice.
 __docs_build = []
 
+#! ### instead of raw dump at #[cfg(dump_packets)], prints packet types
+dump_packets_pretty = []
+
 [package.metadata.docs.rs]
 features = [
   "esp32c3",

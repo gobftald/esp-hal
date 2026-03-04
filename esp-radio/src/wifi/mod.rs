@@ -1846,7 +1846,9 @@ mod private {
 
 /// Wi-Fi device operational modes.
 #[derive(Debug, Clone, Copy)]
-enum WifiDeviceMode {
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+//enum WifiDeviceMode {
+pub(crate) enum WifiDeviceMode {
     /// Station mode.
     Sta,
     /// Access Point mode.
@@ -2343,7 +2345,14 @@ impl WifiRxToken {
         // taken, the function will try to trigger a context switch, which will
         // fail if we are in an interrupt-free context.
         let buffer = data.as_slice_mut();
-        dump_packet_info(buffer);
+
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "dump_packets_pretty")] {
+                dump_packet_info(buffer, self.mode, '<');
+            } else {
+                dump_packet_info(buffer);
+            }
+        }
 
         f(buffer)
     }
@@ -2384,7 +2393,8 @@ impl WifiTxToken {
 
         let res = f(buffer);
 
-        esp_wifi_send_data(self.mode.interface(), buffer);
+        //esp_wifi_send_data(self.mode.interface(), buffer);
+        esp_wifi_send_data(self.mode, buffer);
 
         res
     }
@@ -2405,14 +2415,23 @@ impl TxToken for WifiTxToken {
 // requiring a *mut ptr to the buffer Casting const to mut is instant UB, even
 // though in reality `esp_wifi_internal_tx` copies the buffer into its own
 // memory and does not modify
-pub(crate) fn esp_wifi_send_data(interface: wifi_interface_t, data: &mut [u8]) {
+//pub(crate) fn esp_wifi_send_data(interface: wifi_interface_t, data: &mut [u8]) {
+pub(crate) fn esp_wifi_send_data(mode: WifiDeviceMode, data: &mut [u8]) {
     trace!("sending... {} bytes", data.len());
-    dump_packet_info(data);
+
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "dump_packets_pretty")] {
+            dump_packet_info(data, mode, '>');
+        } else {
+            dump_packet_info(data);
+        }
+    }
 
     let len = data.len() as u16;
     let ptr = data.as_mut_ptr().cast();
 
-    let res = unsafe { esp_wifi_internal_tx(interface, ptr, len) };
+    //let res = unsafe { esp_wifi_internal_tx(interface, ptr, len) };
+    let res = unsafe { esp_wifi_internal_tx(mode.interface(), ptr, len) };
 
     if res != 0 {
         warn!("esp_wifi_internal_tx {}", res);
@@ -2422,10 +2441,64 @@ pub(crate) fn esp_wifi_send_data(interface: wifi_interface_t, data: &mut [u8]) {
     }
 }
 
+#[cfg(not(feature = "dump_packets_pretty"))]
 fn dump_packet_info(_buffer: &mut [u8]) {
     #[cfg(dump_packets)]
     {
         info!("@WIFIFRAME {:?}", _buffer);
+    }
+}
+/// Instead of raw dump, prints packet types
+#[cfg(feature = "dump_packets_pretty")]
+fn dump_packet_info(_buffer: &mut [u8], _mode: WifiDeviceMode, _direction: char) {
+    let mut addr1: [u8; 4] = [0; 4];
+    let mut addr2: [u8; 4] = [0; 4];
+    let port1: u16;
+    let port2: u16;
+
+    use core::ptr::copy_nonoverlapping;
+    unsafe {
+        if _direction == '>' {
+            copy_nonoverlapping(&_buffer[26], &mut addr1 as *mut u8, 4);
+            copy_nonoverlapping(&_buffer[30], &mut addr2 as *mut u8, 4);
+            port1 = (_buffer[34] as u16) << 8 | (_buffer[35] as u16);
+            port2 = (_buffer[36] as u16) << 8 | (_buffer[37] as u16);
+        } else {
+            core::ptr::copy_nonoverlapping(&_buffer[26], &mut addr2 as *mut u8, 4);
+            core::ptr::copy_nonoverlapping(&_buffer[30], &mut addr1 as *mut u8, 4);
+            port2 = (_buffer[34] as u16) << 8 | (_buffer[35] as u16);
+            port1 = (_buffer[36] as u16) << 8 | (_buffer[37] as u16);
+        }
+    }
+
+    match (_buffer[12] as u16) << 8 | (_buffer[13] as u16) {
+        0x0800 => {
+            match _buffer[23] {
+                0x01 => info!("@Icmp packet"),
+                0x11 => info!(
+                    "@Udp {} {}.{}.{}.{} {} {}.{}.{}.{} {} {} {}",
+                    _mode,
+                    addr1[0],
+                    addr1[1],
+                    addr1[2],
+                    addr1[3],
+                    _direction,
+                    addr2[0],
+                    addr2[1],
+                    addr2[2],
+                    addr2[3],
+                    port1,
+                    _direction,
+                    port2
+                ),
+                _ => info!("@Ipv4 packet {:x}", _buffer),
+                //_ => {}
+            }
+        }
+        0x0806 => info!("@Arp packet"),
+        0x86DD => info!("@Ipv6 packet"),
+        _ => info!("@WIFIFRAME {:x}", _buffer),
+        //_ => {}
     }
 }
 
