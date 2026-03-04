@@ -87,6 +87,8 @@ mod fmt;
 mod esp_radio;
 mod run_queue;
 mod scheduler;
+#[cfg(feature = "idle_stats")]
+pub use scheduler::idle_stats;
 pub mod semaphore;
 mod task;
 mod timer;

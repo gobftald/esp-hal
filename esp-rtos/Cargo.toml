@@ -115,3 +115,6 @@ log-04 = ["dep:log-04", "esp-hal/log-04"]
 
 ## Enable logging output using `defmt` and implement `defmt::Format` on certain types.
 defmt = ["dep:defmt", "esp-hal/defmt"]
+
+#! ### collecting cumulative idle time
+idle_stats = []

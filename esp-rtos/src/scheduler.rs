@@ -30,6 +30,11 @@ use crate::{
     timer::TimeDriver,
 };
 
+#[cfg(feature = "idle_stats")]
+static mut IDLE_START: Instant = Instant::EPOCH;
+#[cfg(feature = "idle_stats")]
+static mut CUMULATIVE_IDLE: esp_hal::time::Duration = esp_hal::time::Duration::ZERO;
+
 pub(crate) struct SchedulerState {
     /// A list of all allocated tasks
     pub(crate) all_tasks: TaskList<TaskAllocListElement>,
@@ -222,6 +227,22 @@ impl SchedulerState {
         if next_task != current_task {
             trace!("Switching task {:?} -> {:?}", current_task, next_task);
 
+            // we are coming from idle
+            if current_task.is_none() && let Some(next_task) = next_task {
+                unsafe {
+                    #[cfg(esp_rtos_task_name_str)]
+                    trace!("Switching task None -> {} ({:?})", next_task.as_ref().name, next_task);
+
+                    #[cfg(feature = "idle_stats")]
+                    {
+                        let idle = Instant::now() - IDLE_START;
+                        //trace!("Last IDLE was {:?}", idle);
+                        CUMULATIVE_IDLE += idle;
+                        //trace!("Last CUMULATIVE_IDLE was {:?}", *&raw const CUMULATIVE_IDLE);
+                    }
+                }
+            }
+
             // If the current task is deleted, we can skip saving its context. We signal this by
             // using a null pointer.
             let current_context = if let Some(current) = current_task {
@@ -303,6 +324,9 @@ impl SchedulerState {
 
                 #[cfg(feature = "rtos-trace")]
                 rtos_trace::trace::system_idle();
+
+                #[cfg(feature = "idle_stats")]
+                unsafe { IDLE_START = Instant::now(); }
 
                 &raw mut self.per_cpu[current_cpu].idle_context
             };
@@ -486,3 +510,16 @@ impl rtos_trace::RtosTraceOSCallbacks for Scheduler {
 
 #[cfg(feature = "rtos-trace")]
 rtos_trace::global_os_callbacks!(Scheduler);
+
+
+/// public access to cumulative idle time
+///
+/// # Safety
+///
+/// The returned static value is only updated in this module.
+/// Regarding potential data race, it doesn't matter how accurate this is.
+#[cfg(feature = "idle_stats")]
+pub fn idle_stats() -> esp_hal::time::Duration {
+    // Security: it is only updated in this module, in two different places; and in terms of potential data race, it doesn't matter how accurate this value is
+    unsafe { CUMULATIVE_IDLE }
+}
