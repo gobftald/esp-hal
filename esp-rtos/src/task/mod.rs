@@ -322,6 +322,7 @@ impl<E: TaskListElement> TaskQueue<E> {
 
 #[repr(C)]
 pub(crate) struct Task {
+    pub name: &'static str,
     pub cpu_context: CpuContext,
     #[cfg(feature = "esp-radio")]
     pub thread_semaphore: Option<Semaphore>,
@@ -374,7 +375,7 @@ extern "C" fn task_wrapper(task_fn: extern "C" fn(*mut c_void), param: *mut c_vo
 impl Task {
     #[cfg(feature = "esp-radio")]
     pub(crate) fn new(
-        name: &str,
+        name: &'static str,
         task_fn: extern "C" fn(*mut c_void),
         param: *mut c_void,
         task_stack_size: usize,
@@ -420,6 +421,7 @@ impl Task {
         let stack_top = unsafe { stack_bottom.add(stack_words.len()).cast() };
 
         let mut task = Task {
+            name,
             cpu_context: new_task_context(task_fn, param, stack_top),
             #[cfg(feature = "esp-radio")]
             thread_semaphore: None,

@@ -58,7 +58,7 @@ impl esp_radio_rtos_driver::Scheduler for Scheduler {
 
     fn task_create(
         &self,
-        name: &str,
+        name: &'static str,
         task: extern "C" fn(*mut c_void),
         param: *mut c_void,
         priority: u32,

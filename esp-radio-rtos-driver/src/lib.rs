@@ -94,7 +94,7 @@ macro_rules! scheduler_impl {
         #[unsafe(no_mangle)]
         #[inline]
         fn esp_rtos_task_create(
-            name: &str,
+            name: &'static str,
             task: extern "C" fn(*mut c_void),
             param: *mut c_void,
             priority: u32,
@@ -224,7 +224,7 @@ pub trait Scheduler: Send + Sync + 'static {
     /// It should allocate the stack.
     fn task_create(
         &self,
-        name: &str,
+        name: &'static str,
         task: extern "C" fn(*mut c_void),
         param: *mut c_void,
         priority: u32,

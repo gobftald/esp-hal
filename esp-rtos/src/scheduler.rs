@@ -70,6 +70,7 @@ impl CpuSchedulerState {
             idle_context: CpuContext::new(),
 
             main_task: Task {
+                name: "main",
                 cpu_context: CpuContext::new(),
                 #[cfg(feature = "esp-radio")]
                 thread_semaphore: None,
@@ -143,7 +144,7 @@ impl SchedulerState {
     #[cfg(feature = "esp-radio")]
     pub(crate) fn create_task(
         &mut self,
-        name: &str,
+        name: &'static str,
         task: extern "C" fn(*mut c_void),
         param: *mut c_void,
         task_stack_size: usize,
@@ -230,7 +231,6 @@ impl SchedulerState {
             // we are coming from idle
             if current_task.is_none() && let Some(next_task) = next_task {
                 unsafe {
-                    #[cfg(esp_rtos_task_name_str)]
                     trace!("Switching task None -> {} ({:?})", next_task.as_ref().name, next_task);
 
                     #[cfg(feature = "idle_stats")]
@@ -448,7 +448,7 @@ impl Scheduler {
     #[cfg(feature = "esp-radio")]
     pub(crate) fn create_task(
         &self,
-        name: &str,
+        name: &'static str,
         task: extern "C" fn(*mut c_void),
         param: *mut c_void,
         task_stack_size: usize,
