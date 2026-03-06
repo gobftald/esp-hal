@@ -70,7 +70,7 @@ impl CpuSchedulerState {
             idle_context: CpuContext::new(),
 
             main_task: Task {
-                name: "main",
+                name: "main\0",
                 cpu_context: CpuContext::new(),
                 #[cfg(feature = "esp-radio")]
                 thread_semaphore: None,
@@ -166,7 +166,17 @@ impl SchedulerState {
         let task_ptr = NonNull::from(Box::leak(task));
 
         #[cfg(feature = "rtos-trace")]
-        rtos_trace::trace::task_new(task_ptr.rtos_trace_id());
+        {
+            rtos_trace::trace::task_new(task_ptr.rtos_trace_id());
+
+            // probe-rs (cargo_embed, rttui) does not read sysview down channel socket
+            // therefore systemview app cannot request/callback task_list() function
+            // as a workaround we push information about tasks here when they created
+            rtos_trace::trace::task_send_info(
+                task_ptr.rtos_trace_id(),
+                task_ptr.rtos_trace_info(&mut self.run_queue),
+            );
+        }
 
         self.all_tasks.push(task_ptr);
         match self.run_queue.mark_task_ready(&self.per_cpu, task_ptr) {

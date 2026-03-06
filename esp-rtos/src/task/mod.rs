@@ -119,7 +119,7 @@ impl TaskExt for TaskPtr {
     #[cfg(feature = "rtos-trace")]
     fn rtos_trace_info(self, run_queue: &mut RunQueue) -> TaskInfo {
         TaskInfo {
-            name: "<todo>",
+            name: unsafe { self.as_ref().name },
             priority: self.priority(run_queue).get() as u32,
             stack_base: unsafe { self.as_ref().stack.addr() },
             stack_size: unsafe { self.as_ref().stack.len() },
@@ -552,7 +552,16 @@ pub(super) fn allocate_main_task(
     debug!("Main task created: {:?}", main_task_ptr);
 
     #[cfg(feature = "rtos-trace")]
-    rtos_trace::trace::task_new(main_task_ptr.rtos_trace_id());
+    {
+        rtos_trace::trace::task_new(main_task_ptr.rtos_trace_id());
+        // probe-rs (cargo_embed, rttui) does not read sysview down channel socket
+        // therefore systemview app cannot request/callback task_list() function
+        // as a workaround we push information about tasks here when they created
+        rtos_trace::trace::task_send_info(
+            main_task_ptr.rtos_trace_id(),
+            main_task_ptr.rtos_trace_info(&mut scheduler.run_queue),
+        );
+    }
 
     // The main task is already running, no need to add it to the ready queue.
     scheduler.all_tasks.push(main_task_ptr);
