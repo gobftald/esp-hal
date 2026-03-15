@@ -231,6 +231,9 @@ __docs_build = []
 #! ### instead of raw dump at #[cfg(dump_packets)], prints packet types
 dump_packets_pretty = []
 
+#! ### if ap only wifi configuration then no wpa-supplicant needed
+no_wpa_supplicant = []
+
 [package.metadata.docs.rs]
 features = [
   "esp32c3",

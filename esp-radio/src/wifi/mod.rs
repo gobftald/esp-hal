@@ -111,7 +111,7 @@ use crate::binary::{
         esp_interface_t_ESP_IF_WIFI_AP,
         esp_interface_t_ESP_IF_WIFI_STA,
         esp_supplicant_deinit,
-        esp_supplicant_init,
+        //esp_supplicant_init,
         esp_wifi_deinit_internal,
         esp_wifi_get_mode,
         esp_wifi_init_internal,
@@ -153,6 +153,10 @@ use crate::binary::{
         wifi_sta_config_t,
     },
 };
+
+#[cfg(not(feature = "no_wpa_supplicant"))]  
+use crate::binary::include::esp_supplicant_init;
+
 
 /// Supported Wi-Fi authentication methods.
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, PartialOrd)]
@@ -1515,6 +1519,7 @@ pub(crate) fn wifi_init(_wifi: crate::hal::peripherals::WIFI<'_>) -> Result<(), 
         esp_wifi_result!(esp_wifi_init_internal(addr_of!(internal::G_CONFIG)))?;
         esp_wifi_result!(esp_wifi_set_mode(wifi_mode_t_WIFI_MODE_NULL))?;
 
+        #[cfg(not(feature = "no_wpa_supplicant"))]
         esp_wifi_result!(esp_supplicant_init())?;
 
         esp_wifi_result!(esp_wifi_set_tx_done_cb(Some(esp_wifi_tx_done_cb)))?;
