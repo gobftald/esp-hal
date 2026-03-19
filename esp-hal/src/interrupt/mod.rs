@@ -84,6 +84,13 @@ mod xtensa;
 
 pub mod software;
 
+#[cfg(feature = "irq_stats")]
+const IRQ_COUNT: usize = esp_config::esp_config_int!(usize, "ESP_HAL_CONFIG_IRQ_STATS_SIZE");
+
+#[cfg(feature = "irq_stats")]
+/// a quick and dirty tuple for collecting interrupts statictics
+pub static mut IRQ_STATS: (usize, [(u32,u32); IRQ_COUNT]) = (0, [(0,0); IRQ_COUNT]);
+
 #[cfg(feature = "rt")]
 #[unsafe(no_mangle)]
 extern "C" fn EspDefaultHandler() {
@@ -348,4 +355,16 @@ impl Iterator for InterruptStatusIterator {
         self.idx = usize::MAX;
         None
     }
+}
+
+/// public access to collected IRQ statistics
+///
+/// # Safety
+///
+/// The returned static value is only updated in this module.
+/// Regarding potential data race, it doesn't matter how accurate this is.
+#[cfg(feature = "irq_stats")]
+pub fn irq_stats() -> &'static (usize, [(u32,u32); 8]) {
+    #[allow(static_mut_refs)]
+    unsafe { &IRQ_STATS }
 }

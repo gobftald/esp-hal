@@ -29,6 +29,9 @@ use crate::{
     system::Cpu,
 };
 
+#[cfg(feature = "irq_stats")]
+use super::IRQ_STATS;
+
 /// Interrupt Error
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -426,7 +429,21 @@ mod vectored {
     /// Note that interrupts still need to be enabled globally for interrupts
     /// to be serviced.
     pub fn enable(interrupt: Interrupt, level: Priority) -> Result<(), Error> {
+
+        #[cfg(feature = "irq_stats")]
+        unsafe {
+            let exists = IRQ_STATS.1[0..IRQ_STATS.0]
+                .iter()
+                .any(|i| i.0 == interrupt as u32);
+
+            if !exists {
+                IRQ_STATS.1[IRQ_STATS.0].0 = interrupt as u32;
+                IRQ_STATS.0 += 1;
+            }
+        }
+
         enable_on_cpu(Cpu::current(), interrupt, level)
+
     }
 
     pub(crate) fn enable_on_cpu(
@@ -851,6 +868,16 @@ mod rt {
                     let handler: fn() =
                         unsafe { core::mem::transmute::<usize, fn()>(handler & !1) };
 
+                    #[cfg(feature = "irq_stats")]
+                    unsafe {
+                        #[allow(static_mut_refs)]
+                        for i in IRQ_STATS.1[0..IRQ_STATS.0].iter_mut() {
+                            if i.0 == interrupt_nr as u32 {
+                                i.1 += 1;
+                            }
+                        }
+                    }
+
                     unsafe { riscv::interrupt::nested(handler) };
                 }
             }
@@ -864,6 +891,16 @@ mod rt {
             let not_nested = (handler & 1) == 1;
             if not_nested || prio == Priority::max() {
                 let handler: fn() = unsafe { core::mem::transmute::<usize, fn()>(handler & !1) };
+
+                #[cfg(feature = "irq_stats")]
+                unsafe {
+                    #[allow(static_mut_refs)]
+                    for i in IRQ_STATS.1[0..IRQ_STATS.0].iter_mut() {
+                        if i.0 == interrupt_nr as u32 {
+                            i.1 += 1;
+                        }
+                    }
+                }
 
                 handler();
             }

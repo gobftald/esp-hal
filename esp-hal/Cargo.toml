@@ -306,6 +306,9 @@ unstable = [
 ## For development you can enable the `unstable` and the chip feature by adding esp-hal as a dev-dependency.
 requires-unstable = []
 
+## collecting interrupts statictics
+irq_stats = []
+
 [lints.clippy]
 mixed_attributes_style = "allow"
 

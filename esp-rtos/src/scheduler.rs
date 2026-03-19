@@ -530,6 +530,5 @@ rtos_trace::global_os_callbacks!(Scheduler);
 /// Regarding potential data race, it doesn't matter how accurate this is.
 #[cfg(feature = "idle_stats")]
 pub fn idle_stats() -> esp_hal::time::Duration {
-    // Security: it is only updated in this module, in two different places; and in terms of potential data race, it doesn't matter how accurate this value is
     unsafe { CUMULATIVE_IDLE }
 }

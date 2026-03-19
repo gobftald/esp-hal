@@ -198,5 +198,11 @@ options:
           - '8'
   active: 'chip == "esp32s3"'
 
+- name: irq_stats_size
+  description: The max number of interrupts that can be monitored.
+  default:
+    - value: 8
+  active: 'true'
+
 checks:
   - "ESP_HAL_CONFIG_STACK_GUARD_OFFSET % 4 == 0"
