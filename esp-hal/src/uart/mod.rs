@@ -102,6 +102,14 @@ pub enum RxError {
     /// This error occurs when the parity bit in the received data does not
     /// match the expected parity configuration.
     ParityMismatch,
+
+    /// I needed this information for tuning communication (it is an important signal after receiving
+    /// the last byte calling read_async() with a buffer with "open ended lenght! " and 10 bytes uart
+    /// fifo timeout, and not the read_exact_async() function without this timeout).
+    /// A well tuned communication code has no such fifo timeout event
+    ///
+    /// so I eliminated the suppression of this event in the entire code.
+    FifoTimeout,
 }
 
 impl core::error::Error for RxError {}
@@ -115,6 +123,7 @@ impl core::fmt::Display for RxError {
                 write!(f, "A framing error was detected on the RX line")
             }
             RxError::ParityMismatch => write!(f, "A parity error was detected on the RX line"),
+            RxError::FifoTimeout=> write!(f, "RX timeout"),
         }
     }
 }
@@ -861,6 +870,40 @@ where
         // fast and slow baud rates.
         crate::rom::ets_delay_us(10);
         while !self.is_tx_idle() {}
+    }
+
+    /// Sends a break signal for a specified duration
+    ///
+    /// The delay during the break is just busy-waiting.
+    ///
+    /// This function appears in later release but we need to implement
+    /// for Fast Init in KWP2000, so we had to implement it now
+    pub fn send_break(&mut self, delay_us: u32) {
+        // Read the current TX inversion state
+        let original_conf0 = self.uart.info().regs().conf0().read();
+        let original_txd_inv = original_conf0.txd_inv().bit();
+
+        // Invert the TX line (toggle the current state)
+        self.uart
+            .info()
+            .regs()
+            .conf0()
+            .modify(|_, w| w.txd_inv().bit(!original_txd_inv));
+
+        #[cfg(any(esp32c3, esp32c6, esp32h2, esp32s3))]
+        sync_regs(self.uart.info().regs());
+
+        crate::rom::ets_delay_us(delay_us);
+
+        // Restore the original register state
+        self.uart
+            .info()
+            .regs()
+            .conf0()
+            .write(|w| unsafe { w.bits(original_conf0.bits()) });
+
+        #[cfg(any(esp32c3, esp32c6, esp32h2, esp32s3))]
+        sync_regs(self.uart.info().regs());
     }
 
     /// Checks if the TX line is idle for this UART instance.
@@ -2242,7 +2285,10 @@ fn rx_event_check_for_error(events: EnumSet<RxEvent>) -> Result<(), RxError> {
             RxEvent::GlitchDetected => return Err(RxError::GlitchOccurred),
             RxEvent::FrameError => return Err(RxError::FrameFormatViolated),
             RxEvent::ParityError => return Err(RxError::ParityMismatch),
-            RxEvent::FifoFull | RxEvent::CmdCharDetected | RxEvent::FifoTout => continue,
+            //RxEvent::FifoFull | RxEvent::CmdCharDetected | RxEvent::FifoTout => continue,
+            RxEvent::FifoFull | RxEvent::CmdCharDetected => continue,
+            RxEvent::FifoTout => return Err(RxError::FifoTimeout),
+
         }
     }
 
@@ -3490,6 +3536,12 @@ impl Info {
         for byte_into in buf[..to_read].iter_mut() {
             *byte_into = self.read_next_from_fifo();
         }
+
+        // it took two full days debugging and tracing to find out what was the problem
+        // when I found and made this repair, I found exactly the same in a later version
+        //
+        // This bit is not cleared until the FIFO actually drops below the threshold.
+        self.clear_rx_events(RxEvent::FifoFull);
 
         Ok(to_read)
     }
