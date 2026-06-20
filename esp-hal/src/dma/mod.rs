@@ -2882,7 +2882,14 @@ pub(crate) mod asynch {
                 self.tx.waker().register(cx.waker());
                 self.tx
                     .listen_out(DmaTxInterrupt::TotalEof | DmaTxInterrupt::DescriptorError);
-                Poll::Pending
+                //Poll::Pending
+                if self.tx.is_done() {
+                    self.tx.unlisten_out(EnumSet::all());
+                    self.tx.clear_interrupts();
+                    Poll::Ready(Ok(()))
+                } else {
+                    Poll::Pending
+                }
             }
         }
     }
@@ -2942,7 +2949,17 @@ pub(crate) mod asynch {
                         | DmaRxInterrupt::DescriptorEmpty
                         | DmaRxInterrupt::ErrorEof,
                 );
-                Poll::Pending
+                //Poll::Pending
+
+                // Check again after enabling — handles the race where DMA completed
+                // between is_done() check and listen_in()
+                if self.rx.is_done() {
+                    self.rx.unlisten_in(EnumSet::all());
+                    self.rx.clear_interrupts();
+                    Poll::Ready(Ok(()))
+                } else {
+                    Poll::Pending
+                }
             }
         }
     }
@@ -3008,7 +3025,16 @@ pub(crate) mod asynch {
                 self.tx.waker().register(cx.waker());
                 self.tx
                     .listen_out(DmaTxInterrupt::Done | DmaTxInterrupt::DescriptorError);
-                Poll::Pending
+                //Poll::Pending
+
+                // Re-check after enabling — race between first check and listen_out
+                if self.tx.pending_out_interrupts().contains(DmaTxInterrupt::Done) {
+                    self.tx.unlisten_out(EnumSet::all());
+                    self.tx.clear_out(DmaTxInterrupt::Done);
+                    Poll::Ready(Ok(()))
+                } else {
+                    Poll::Pending
+                }
             }
         }
     }
@@ -3076,7 +3102,16 @@ pub(crate) mod asynch {
                         | DmaRxInterrupt::DescriptorEmpty
                         | DmaRxInterrupt::ErrorEof,
                 );
-                Poll::Pending
+                //Poll::Pending
+
+                // Re-check after enabling — race between first check and listen_in
+                if self.rx.pending_in_interrupts().contains(DmaRxInterrupt::Done) {
+                    self.rx.unlisten_in(EnumSet::all());
+                    self.rx.clear_in(DmaRxInterrupt::Done);
+                    Poll::Ready(Ok(()))
+                } else {
+                    Poll::Pending
+                }
             }
         }
     }
