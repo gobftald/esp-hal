@@ -593,6 +593,7 @@ pub struct Config {
     /// Software timeout.
     ///
     /// Default value: disabled.
+    #[builder_lite(unstable)]
     software_timeout: SoftwareTimeout,
 
     /// Sets the threshold value for the unchanged period of the SCL_FSM.
