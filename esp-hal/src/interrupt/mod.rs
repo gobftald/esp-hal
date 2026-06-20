@@ -80,7 +80,7 @@ pub use self::xtensa::*;
 #[cfg(riscv)]
 mod riscv;
 #[cfg(xtensa)]
-mod xtensa;
+pub mod xtensa;
 
 pub mod software;
 
@@ -368,3 +368,6 @@ pub fn irq_stats() -> &'static (usize, [(u32,u32); 8]) {
     #[allow(static_mut_refs)]
     unsafe { &IRQ_STATS }
 }
+
+#[cfg(all(feature = "irq_stats", xtensa))]
+pub use xtensa::register_cpu_interrupt_stat;

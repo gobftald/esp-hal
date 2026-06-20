@@ -11,6 +11,9 @@ pub use self::vectored::*;
 use super::InterruptStatus;
 use crate::{interrupt::IsrCallback, pac, peripherals::Interrupt, system::Cpu};
 
+#[cfg(feature = "irq_stats")]
+use super::IRQ_STATS;
+
 /// Interrupt Error
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -497,6 +500,19 @@ mod vectored {
 
     /// Enable the given peripheral interrupt
     pub fn enable(interrupt: Interrupt, level: Priority) -> Result<(), Error> {
+
+        #[cfg(feature = "irq_stats")]
+        unsafe {
+            let exists = IRQ_STATS.1[0..IRQ_STATS.0]
+                .iter()
+                .any(|i| i.0 == interrupt as u32);
+
+            if !exists {
+                IRQ_STATS.1[IRQ_STATS.0].0 = interrupt as u32;
+                IRQ_STATS.0 += 1;
+            }
+        }
+
         enable_on_cpu(Cpu::current(), interrupt, level)
     }
 
@@ -688,6 +704,16 @@ mod rt {
             // Pick one
             let cpu_interrupt_nr = cpu_interrupt_mask.trailing_zeros();
 
+            #[cfg(feature = "irq_stats")]
+            unsafe {
+                #[allow(static_mut_refs)]
+                for i in IRQ_STATS.1[0..IRQ_STATS.0].iter_mut() {
+                    if i.0 == cpu_interrupt_nr {
+                        i.1 += 1;
+                    }
+                }
+            }
+
             // If the interrupt is edge triggered, we need to clear the request on the CPU's
             // side.
             if ((1 << cpu_interrupt_nr) & CPU_INTERRUPT_EDGE) != 0 {
@@ -723,6 +749,17 @@ mod rt {
                 let handler: fn(&mut Context) = unsafe {
                     core::mem::transmute::<unsafe extern "C" fn(), fn(&mut Context)>(handler)
                 };
+
+                #[cfg(feature = "irq_stats")]
+                unsafe {
+                    #[allow(static_mut_refs)]
+                    for i in IRQ_STATS.1[0..IRQ_STATS.0].iter_mut() {
+                        if i.0 == interrupt_nr as u32 {
+                            i.1 += 1;
+                        }
+                    }
+                }
+
                 handler(save_frame);
             }
         }
@@ -783,5 +820,19 @@ mod rt {
     #[unsafe(link_section = ".rwtext")]
     unsafe fn __level_7_interrupt(save_frame: &mut Context) {
         unsafe { level7_interrupt(save_frame) }
+    }
+}
+
+#[cfg(feature = "irq_stats")]
+/// helper for registering IRQ7 for xtensa
+pub fn register_cpu_interrupt_stat(cpu_interrupt_nr: u32) {
+    unsafe {
+        let exists = IRQ_STATS.1[0..IRQ_STATS.0]
+            .iter()
+            .any(|i| i.0 == cpu_interrupt_nr);
+        if !exists {
+            IRQ_STATS.1[IRQ_STATS.0].0 = cpu_interrupt_nr;
+            IRQ_STATS.0 += 1;
+        }
     }
 }
