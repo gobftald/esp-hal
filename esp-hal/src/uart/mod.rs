@@ -1025,7 +1025,13 @@ impl<'d> UartRx<'d, Async> {
         }
     }
 
-    async fn wait_for_buffered_data(
+    /// published to receive CMD_AT but very fast consecutive  messages
+    ///
+    /// it is called from either read_exact_async or read_async but with
+    /// 'minimum = 1'
+    /// which can unecessarily catch a byte from the next sentence before
+    /// CMD_AT triggered for that sentence
+    pub async fn wait_for_buffered_data(
         &mut self,
         minimum: usize,
         preferred: usize,
@@ -2284,11 +2290,9 @@ fn rx_event_check_for_error(events: EnumSet<RxEvent>) -> Result<(), RxError> {
             RxEvent::FifoOvf => return Err(RxError::FifoOverflowed),
             RxEvent::GlitchDetected => return Err(RxError::GlitchOccurred),
             RxEvent::FrameError => return Err(RxError::FrameFormatViolated),
-            RxEvent::ParityError => return Err(RxError::ParityMismatch),
-            //RxEvent::FifoFull | RxEvent::CmdCharDetected | RxEvent::FifoTout => continue,
-            RxEvent::FifoFull | RxEvent::CmdCharDetected => continue,
-            RxEvent::FifoTout => return Err(RxError::FifoTimeout),
 
+            RxEvent::ParityError => return Err(RxError::ParityMismatch),
+            RxEvent::FifoFull | RxEvent::CmdCharDetected | RxEvent::FifoTout => continue,
         }
     }
 
