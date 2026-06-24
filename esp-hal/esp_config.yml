@@ -201,7 +201,7 @@ options:
 - name: irq_stats_size
   description: The max number of interrupts that can be monitored.
   default:
-    - value: 8
+    - value: 16
   active: 'true'
 
 checks:

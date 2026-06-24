@@ -72,6 +72,7 @@ const RESET: &str = "\u{001B}[0m";
 #[cfg(feature = "panic-handler")]
 const RED: &str = "\u{001B}[31m";
 
+/*
 #[cfg(all(feature = "panic-handler", feature = "defmt"))]
 macro_rules! println {
     ($($arg:tt)*) => {
@@ -79,7 +80,7 @@ macro_rules! println {
     };
 }
 
-#[cfg(all(feature = "panic-handler", feature = "defmt", stack_dump))]
+#[cfg(all(feature = "panic-handler", feature = "defmt"))]
 pub(crate) use println;
 
 #[cfg(all(feature = "panic-handler", not(feature = "defmt")))]
@@ -88,10 +89,19 @@ macro_rules! println {
         esp_println::println!($($arg)*);
     };
 }
+*/
+
+#[cfg(feature = "panic-handler")]
+macro_rules! println {
+    ($($arg:tt)*) => {
+        esp_println::println!($($arg)*);
+    };
+}
 
 #[cfg(feature = "panic-handler")]
 fn set_color_code(_code: &str) {
-    #[cfg(all(feature = "colors", not(feature = "defmt")))]
+    //#[cfg(all(feature = "colors", not(feature = "defmt")))]
+    #[cfg(feature = "colors")]
     {
         println!("{}", _code);
     }
@@ -103,6 +113,7 @@ pub(crate) mod arch;
 
 #[cfg(feature = "panic-handler")]
 #[allow(unused_variables)]
+#[allow(unused_variables)]
 #[panic_handler]
 fn panic_handler(info: &core::panic::PanicInfo) -> ! {
     pre_backtrace();
@@ -111,7 +122,7 @@ fn panic_handler(info: &core::panic::PanicInfo) -> ! {
     println!("");
     println!("====================== PANIC ======================");
 
-    #[cfg(not(feature = "defmt"))]
+    //#[cfg(not(feature = "defmt"))]
     println!("{}", info);
 
     set_color_code(RESET);

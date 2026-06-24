@@ -364,7 +364,7 @@ impl Iterator for InterruptStatusIterator {
 /// The returned static value is only updated in this module.
 /// Regarding potential data race, it doesn't matter how accurate this is.
 #[cfg(feature = "irq_stats")]
-pub fn irq_stats() -> &'static (usize, [(u32,u32); 8]) {
+pub fn irq_stats() -> &'static (usize, [(u32,u32); IRQ_COUNT]) {
     #[allow(static_mut_refs)]
     unsafe { &IRQ_STATS }
 }
