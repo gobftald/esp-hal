@@ -15,7 +15,7 @@ use portable_atomic::AtomicPtr;
 use crate::{
     SCHEDULER,
     scheduler::SchedulerState,
-    task::{TaskExt, TaskPtr},
+    task::TaskPtr,
 };
 
 /// A zero-overhead lock that allows mutable access to the contained value through the scheduler.
